@@ -1,52 +1,92 @@
+
+
 from pathlib import Path
 import shutil
 import os
-
-# Please input your paths below in quotes:
-source_path = None
-destination_path = None
+import argparse
 
 
-def copy_files(source_path: Path, destination_path: Path):
+def create_directory(path, directory_name):
+    new_directory_path = path / directory_name
+    if new_directory_path.exists() and new_directory_path.is_dir():
+        print(f"Directory '{new_directory_path}' already exists at {directory_name}")
+        return new_directory_path
+    else:
+        try:
+            new_directory_path.mkdir(parents=True, exist_ok=True)
+            return new_directory_path
+        except Exception as e:
+            print(f"Error creating directory: {e}")
 
-    for ob in source_path.iterdir():
-        if ob.is_dir():
-            copy_files(ob, destination_path)
+
+def get_dir_reciever(file_ext, dist_path):
+    dist_folder = dist_path / file_ext
+    if dist_folder.exists():
+        path = dist_path / file_ext
+        return path
+    else:
+        path = create_directory(dist_path, file_ext)
+        print(f"New folder has been created with name {file_ext}")
+        return path
+
+
+def file_copy_handler(file, dest_path):
+    destination_folder = get_dir_reciever(file.suffix, dest_path)
+    destination_file = destination_folder / file.name
+
+    if destination_file.exists():
+        print(f"In directory '{destination_folder}' already exists file {file.name}")
+    else:
+        source_path = file
+        destination_path = Path(destination_folder)
+        try:
+            shutil.copy(source_path, destination_path)
+            print(f"File {file.name} is succesfuly copied at {destination_path}")
+        except Exception as ex:
+            print(f"File {file.name} cannot be copied. Reason: {ex}")
+
+
+def folder_handler(path, new_directory_path):
+    current_file_list = path.iterdir()
+    for data in current_file_list:
+        if data.is_file():
+            file_copy_handler(data, new_directory_path)
         else:
             try:
-                destination_path_new = os.path.join(
-                    destination_path, str(ob.suffix).replace(".", "")
-                )
-                if not Path(destination_path_new).exists():
-                    os.mkdir(destination_path_new)
-                shutil.copy(ob, os.path.join(destination_path_new, ob.name))
-            except:
-                print(f"The file or directory {ob} is unreachable or doesn't exist.")
+                folder_handler(data, new_directory_path)
+            except Exception as ex:
+                print(f"Error during folder opening: {ex}")
 
 
-def check_paths(source_path, destination_path):
+def main():
+    parser = argparse.ArgumentParser(description="Process command-line arguments")
 
-    if source_path is None:
-        print("The source path can not be None")
+    parser.add_argument("--source", "-s", required=True)
+    parser.add_argument("--dist", "-d", default="dist")
+
+    args = parser.parse_args()
+
+    source_str = os.path.abspath(args.source)
+    source_path = Path(source_str)
+
+    if not source_path.exists():
+        print("Sorry, source folder not found")
+        return
+
+    if args.dist == "dist":
+        p = Path()
+        dist_path = create_directory(p, args.dist)
+
     else:
-        if source_path == destination_path:
-            print(
-                f"The source: {source_path} and destination: {destination_path} paths are the same. Please enter valid paths."
-            )
+        dist_str = os.path.abspath(args.dist)
+        dist_path = Path(dist_str)
 
-        elif not Path(source_path).exists():
-            print(f"The source path {source_path} is unreachable or doesn't exist.")
+    if not dist_path.exists():
+        print("Sorry, destination folder not found")
+        return
 
-        elif destination_path is not None:
-            if not Path(destination_path).exists():
-                print(
-                    f"The destination path {destination_path} is unreachable or doesn't exist."
-                )
-        else:
-            os.mkdir("dist")
-            destination_path = "dist"
-
-        copy_files(Path(source_path), Path(destination_path))
+    folder_handler(source_path, dist_path)
 
 
-check_paths(source_path, destination_path)
+if __name__ == "__main__":
+    main()
